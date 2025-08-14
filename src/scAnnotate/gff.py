@@ -1,32 +1,32 @@
 import os
 import sys
+import gffutils
 import urllib.request
 import pathlib as path
-import gffutils
 
 from dataclasses import dataclass
 
 Interval = tuple[int, int]
 
-@dataclass
-class Exon:
-    id: str
-    transcript_id: str
-    chrom: str
-    strand: str
-    start: int
-    end: int
-
-
-@dataclass
-class Transcript:
-    id: str
-    gene_id: str
-    chrom: str
-    strand: str
-    start: int
-    end: int
-    exons: list[Exon]
+# @dataclass
+# class Exon:
+#     id: str
+#     transcript_id: str
+#     chrom: str
+#     strand: str
+#     start: int
+#     end: int
+#
+#
+# @dataclass
+# class Transcript:
+#     id: str
+#     gene_id: str
+#     chrom: str
+#     strand: str
+#     start: int
+#     end: int
+#     exons: list[Exon]
 
 @dataclass
 class Gene:
@@ -94,7 +94,7 @@ def merge_overlapping_intervals(intervals: list[Interval]) -> list[Interval]:
     return merged
 
 
-def load_genes_with_exons(db_path: path.Path | str, chr_id: str, ) -> list[Gene]:
+def load_genes_with_exons(db_path: path.Path | str, chr_id: str) -> list[Gene]:
     db = load_feature_db(db_path)
     genes: list[Gene] = []
 
