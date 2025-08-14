@@ -9,6 +9,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+data/
 develop-eggs/
 dist/
 downloads/
@@ -25,6 +26,12 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+# Keep structural subfolders
+!data/gff/.gitkeep
+!data/bam/.gitkeep
+!data/h5ad/.gitkeep
+
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
