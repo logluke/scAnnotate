@@ -1,29 +1,32 @@
 import numpy as np
 import anndata as ad
 from sklearn import mixture
-import scanpy as sc
+
 
 def add_annotations(data: ad.AnnData):
     # Calculate cell quality controll metrics
     n_genes_per_cell = (data.X > 1).sum(axis=1).A1
-    data.obs['total_genes'] = n_genes_per_cell
-    data.obs['log1p_total_genes'] = np.log10(n_genes_per_cell + 1)
+    data.obs["total_genes"] = n_genes_per_cell
+    data.obs["log1p_total_genes"] = np.log10(n_genes_per_cell + 1)
 
     total_count_per_cell = data.X.sum(axis=1).A1
-    data.obs['total_counts'] = total_count_per_cell
-    data.obs['log1p_total_counts'] = np.log10(total_count_per_cell + 1)
+    data.obs["total_counts"] = total_count_per_cell
+    data.obs["log1p_total_counts"] = np.log10(total_count_per_cell + 1)
 
     # Calculate percentage of mitochondrial gene coverage per cell
     mt_mask = data.var["chrom"] == "MT"
     mt_data = data[:, mt_mask]
     mt_count_per_cell = mt_data.X.sum(axis=1).A1
-    data.obs['mt_counts'] = mt_count_per_cell + 1
-    data.obs['pct_mt_counts'] = np.where(total_count_per_cell > 0, mt_count_per_cell / total_count_per_cell * 100, 0)
-    data.obs['log_pct_mt_counts'] = np.log10(data.obs['pct_mt_counts'])
+    data.obs["mt_counts"] = mt_count_per_cell + 1
+    data.obs["pct_mt_counts"] = np.where(
+        total_count_per_cell > 0, mt_count_per_cell / total_count_per_cell * 100, 0
+    )
+    data.obs["log_pct_mt_counts"] = np.log10(data.obs["pct_mt_counts"])
     # np.where(condition, x, y) picks x[i] where condition[i] is True, else y[i]
 
+
 def cell_quality_control(data: ad.AnnData):
-    X = data.obs[['log1p_total_counts', 'log1p_total_genes', 'pct_mt_counts']]
+    X = data.obs[["log1p_total_counts", "log1p_total_genes", "pct_mt_counts"]]
 
     # Fit GMM
     gmm = mixture.GaussianMixture(n_components=2, covariance_type="full")

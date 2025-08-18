@@ -28,6 +28,7 @@ Interval = tuple[int, int]
 #     end: int
 #     exons: list[Exon]
 
+
 @dataclass
 class Gene:
     id: str
@@ -50,8 +51,14 @@ def download_gff(gff_path: path.Path | str):
         sys.exit(1)
 
 
-def build_feature_db(gff_path: path.Path, db_path : path.Path | str, *, force: bool = False, m_strat: str = "create_unique",
-                     keep_order: bool = True):
+def build_feature_db(
+    gff_path: path.Path,
+    db_path: path.Path | str,
+    *,
+    force: bool = False,
+    m_strat: str = "create_unique",
+    keep_order: bool = True,
+):
     gffutils.create_db(
         str(gff_path),
         dbfn=str(db_path),
@@ -101,10 +108,13 @@ def load_genes_with_exons(db_path: path.Path | str, chr_id: str) -> list[Gene]:
     for gene in db.features_of_type("gene"):
         if gene.chrom != chr_id and chr_id != "all":
             continue
-        exon_ivs = [(exon.start - 1, exon.end) for exon in db.children(gene, featuretype="exon", level=2)]
+        exon_ivs = [
+            (exon.start - 1, exon.end)
+            for exon in db.children(gene, featuretype="exon", level=2)
+        ]
         m_exon_ivs = merge_overlapping_intervals(exon_ivs)
         gi = Gene(
-            id=gene.id.replace(f"gene:", ""),
+            id=gene.id.replace("gene:", ""),
             chrom=gene.chrom,
             strand=gene.strand,
             start=gene.start,

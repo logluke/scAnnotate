@@ -15,30 +15,31 @@ import src.scAnnotate.gff
 
 
 def is_high_quality_flag(flag: int) -> bool:
-    """ Check if the flag indicates a high-quality read. """
+    """Check if the flag indicates a high-quality read."""
     unmapped = 0b0000_0000_0000_0100  # 4
     secondary = 0b0000_0001_0000_0000  # 256
     qcfail = 0b0000_0010_0000_0000  # 512
     duplicate = 0b0000_0100_0000_0000  # 1024
 
     # Operator |: Sets each bit to 1 if one of two bits is 1
-    bad_mask = (unmapped | secondary | qcfail | duplicate)
+    bad_mask = unmapped | secondary | qcfail | duplicate
 
     # Operator &: Sets each bit to 1 if both bits are 1
     return (flag & bad_mask) == 0
 
 
-def init_worker(bam_path: str,
-                gene2col: dict[str, int],
-                cell2row: dict[str, int],
-                include_introns: bool):
+def init_worker(
+    bam_path: str,
+    gene2col: dict[str, int],
+    cell2row: dict[str, int],
+    include_introns: bool,
+):
     global shared_bam_reader, shared_gene2col, shared_cell2row, shared_use_introns
 
     shared_bam_reader = pysam.AlignmentFile(bam_path, "rb")
     shared_gene2col = gene2col
     shared_cell2row = cell2row
     shared_use_introns = include_introns
-
 
 
 def worker(gene) -> tuple[int, np.array]:
@@ -55,7 +56,7 @@ def worker(gene) -> tuple[int, np.array]:
     if include_introns:
         regions = [(gene.start, gene.end)]
     else:
-        regions = gene.ivs
+        regions = gene.exons
 
     for start, end in regions:
         for aln in bam.fetch(gene.chrom, start, end):
@@ -63,9 +64,9 @@ def worker(gene) -> tuple[int, np.array]:
                 continue
             if aln.mapping_quality < 30:
                 continue
-            if gene.strand== "+" and aln.is_reverse:
+            if gene.strand == "+" and aln.is_reverse:
                 continue
-            if gene.strand== "-" and aln.is_forward:
+            if gene.strand == "-" and aln.is_forward:
                 continue
             try:
                 cb = aln.get_tag("CB")
@@ -77,14 +78,14 @@ def worker(gene) -> tuple[int, np.array]:
     return col, vec
 
 
-
-def count_matrix(bam_path : path.Path,
-                 db_path : path.Path,
-                 cm_path : path.Path,
-                 *,
-                 chrom : str = "all",
-                 include_introns : bool = True):
-
+def count_matrix(
+    bam_path: path.Path,
+    db_path: path.Path,
+    cm_path: path.Path,
+    *,
+    chrom: str = "all",
+    include_introns: bool = True,
+):
     # Generate feature (gene > transcript > exon) tree to count reads
     genes = src.scAnnotate.gff.load_genes_with_exons(db_path, chrom)
 
@@ -92,7 +93,10 @@ def count_matrix(bam_path : path.Path,
     # Gene id as row label
     gene_ids = [gene.id for gene in genes]
     # Cell barcode as column label
-    cell_ids = [f"{i:02d}_{j:02d}_{k:02d}" for i, j, k in it.product(range(1, 49), range(1, 97), range(1, 97))]
+    cell_ids = [
+        f"{i:02d}_{j:02d}_{k:02d}"
+        for i, j, k in it.product(range(1, 49), range(1, 97), range(1, 97))
+    ]
 
     # asign idx to id for quick access later
     gene2col = {gene_id: idx for idx, gene_id in enumerate(gene_ids)}
@@ -108,9 +112,7 @@ def count_matrix(bam_path : path.Path,
         initargs=(bam_path, gene2col, cell2row, include_introns),
     ) as pool:
         # map over all gene_ids, with a progress bar
-        for col, vec in tqdm(
-            pool.imap_unordered(worker, genes), total=len(genes)
-        ):
+        for col, vec in tqdm(pool.imap_unordered(worker, genes), total=len(genes)):
             # fold each gene-vector into the global sparse matrix
             global_counts[:, col] = sparse.csr_matrix(vec).T
 
@@ -123,17 +125,29 @@ def count_matrix(bam_path : path.Path,
     )
 
     # Adding gene annotations
-    var_annotation = pd.DataFrame.from_records((dc.asdict(g) for g in genes), index="id")
+    var_annotation = pd.DataFrame.from_records(
+        (dc.asdict(g) for g in genes), index="id"
+    )
     if not include_introns:
-        var_annotation["exon_start"] = var_annotation["ivs"].apply(lambda gene: [iv[0] for iv in gene])
-        var_annotation['exon_start'] = var_annotation["exon_start"].apply(lambda x: ', '.join([str(i) for i in x]))
-        var_annotation["exon_end"] = var_annotation["ivs"].apply(lambda gene: [iv[1]for iv in gene])
-        var_annotation['exon_end'] = var_annotation["exon_end"].apply(lambda x: ', '.join([str(i) for i in x]))
+        var_annotation["exon_start"] = var_annotation["exons"].apply(
+            lambda gene: [iv[0] for iv in gene]
+        )
+        var_annotation["exon_start"] = var_annotation["exon_start"].apply(
+            lambda x: ", ".join([str(i) for i in x])
+        )
+        var_annotation["exon_end"] = var_annotation["exons"].apply(
+            lambda gene: [iv[1] for iv in gene]
+        )
+        var_annotation["exon_end"] = var_annotation["exon_end"].apply(
+            lambda x: ", ".join([str(i) for i in x])
+        )
     var_annotation.drop(columns=["exons"], inplace=True)
     adata.var = adata.var.join(var_annotation)
 
     # Adding cell metadata
-    obs_annotation = pd.DataFrame({"time": np.repeat(["T0", "T1", "T2"], 16 * 96 * 96)}, index=adata.obs_names)
+    obs_annotation = pd.DataFrame(
+        {"time": np.repeat(["T0", "T1", "T2"], 16 * 96 * 96)}, index=adata.obs_names
+    )
     adata.obs = adata.obs.join(obs_annotation)
 
     adata.write_h5ad(cm_path, compression="gzip")
