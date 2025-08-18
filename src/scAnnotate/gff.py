@@ -117,7 +117,7 @@ def load_genes_with_exons(db_path: path.Path | str, chr_id: str) -> list[Gene]:
             id=gene.id.replace("gene:", ""),
             chrom=gene.chrom,
             strand=gene.strand,
-            start=gene.start,
+            start=gene.start-1,  # Convert to 0-based start
             end=gene.end,
             exons=m_exon_ivs,
         )
