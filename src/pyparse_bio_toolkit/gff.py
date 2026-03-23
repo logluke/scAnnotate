@@ -40,7 +40,10 @@ class Gene:
 
 
 def download_gff(gff_path: path.Path | str):
-    url = f"https://ftp.ensembl.org/pub/current_gff3/homo_sapiens/{gff_path.name}"
+    import re
+    match = re.search(r"\.(\d+)\.", gff_path.name)
+    release = match.group(1) if match else "current"
+    url = f"https://ftp.ensembl.org/pub/release-{release}/gff3/homo_sapiens/{gff_path.name}"
     try:
         urllib.request.urlretrieve(url, gff_path)
         print(f"Download complete: {gff_path}")

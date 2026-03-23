@@ -11,7 +11,7 @@ from tqdm import tqdm
 from scipy import sparse
 
 
-import src.scAnnotate.gff
+from src.pyparse_bio_toolkit import gff
 
 
 def is_high_quality_flag(flag: int) -> bool:
@@ -87,7 +87,7 @@ def count_matrix(
     include_introns: bool = True,
 ):
     # Generate feature (gene > transcript > exon) tree to count reads
-    genes = src.scAnnotate.gff.load_genes_with_exons(db_path, chrom)
+    genes = gff.load_genes_with_exons(db_path, chrom)
 
     # Init AnnData Count Matrix to store coverage
     # Gene id as row label
